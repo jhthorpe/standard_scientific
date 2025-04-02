@@ -21,12 +21,10 @@
 #   April 2, 2025 : JHT created
 #
 
+import functools
 from dataclasses import dataclass
 from decimal import Decimal
 import re
-
-__all__ = ['standard_scientific']
-__version__ = '0.0.1'
 
 #################################################################################
 # exponent_from_float
@@ -46,32 +44,119 @@ def exponent_from_float(x: float) -> int:
 # A class that represents a piece of data in scientific notation and tracks its
 # significant figures
 #
+# NOTE:
+#   This uses the default dataclass constructors, which do NOT guarentee that
+#   your significant figure data makes ANY sense at all. For example...
 #
-#@dataclass 
-#class Sigfig_SI:
-#    '''Class for representing data in scientific notation with significant figures'''
-#    value: float = None #the actual value as a python float
-#    sigfigs: int = None #the number of significant figures
-#    exponent: int = None #exponent (*10^Y, or EY, where Y is this exponent)
+#   pi = Sigfig(value = 3.14, sigfigs = 2, exponent = -1)
 #
-#    #from_float
-#    @classmethod
-#    def from_float(cls, value: float, sigfigs: int):
-#        '''Given a python float and number of sigfigs, return a Sigfit_SI object''' 
-#        assert(isinstance(float(values), float)), f"Value {value} could not be converted to float"
-#        assert(isinstance(int(sigfigs), int)), f"Sigfigs {sigfigs} could not be converted to int"
+# will have the following problems:
+#   a. the value is 3.14 instead of 3.1, as indicated by the sigfigs
+#   b. the value is 3.14 instead of 0.314, as indicated by the exponent
 #
-#        self.value = float(value)
-#        self.sigfigs = int(sigfigs) 
-#        self.exponent = exponent_from_float(self.value) 
+# To ensure correct construction, ALWAYS use the "from_float" function: 
+#   pi = Sigfig.from_float(value = 3.14, sigfigs = 2)
 #
-#    #from string
+#   pi.value = 3.1
+#   pi.sigfigs = 2
+#   pi.exponent = 0
 #
-#    #to string
 #
-#    #add two Sigfig_SI
-#
-#    #multiply two Sigfig_SI
+@functools.total_ordering
+@dataclass
+class Sigfig:
+    '''Class for representing data in scientific notation with significant figures'''
+    value: float
+    sigfigs: int
+    exponent: int
+
+    #########################################################
+    # from_float
+    # Generates a Sigfig from a floating point with the designated number of significant digits
+    #
+    @classmethod
+    def from_float(cls, value: float, sigfigs: int):
+        '''Given a python float and number of sigfigs, return a Sigfit_SI object''' 
+        assert(isinstance(float(value), float)), f"Value {value} could not be converted to float."
+        assert(isinstance(int(sigfigs), int)), f"Sigfigs {sigfigs} could not be converted to int."
+
+        #now, we need to round the float to the sigfigs
+        fv = float(value)
+        sf = int(sigfigs)
+        exp = exponent_from_float(fv)
+
+        return Sigfig(value = round(fv, (sf - 1) - exp), sigfigs = sf, exponent = exp) 
+
+
+    #########################################################
+    # to string
+    # returns a string of a given float to the designated number of significant figures  
+    #
+
+    ##################################################################
+    # == (equality) 
+    # 
+    # NOTE:
+    #   This has an override depending on if the other thing 
+    #   is another Sigfig object or just a "normal" number (which 
+    #   we will take to mean it is infinitely precise). That is, 
+    #   the two values MUST agree 0.5 of one more digit than they are
+    #   significant to.
+    #
+    def __eq__(self, other):
+        if (isinstance(other, Sigfig)):
+            return (self.sigfigs == other.sigfigs and
+                    self.exponent == other.exponent and
+                    abs(self.value - other.value) < (5.0 * pow(10., -self.sigfigs + self.exponent)))
+        else:
+            return self.value < other
+
+    ##################################################################
+    # < (strictly less than)
+    #
+    # NOTE:
+    #   This one has an override dependong on if the other 
+    #   this in another Sigfig object or just a "normal" number,
+    #   though precision does not matter in this case
+    #
+    def __lt__(self, other):
+        if (isinstance(other, Sigfig)):
+            return self.value < other.value
+        else:
+            return self.value < other
+
+    ##################################################################
+    # + (add)
+    #
+    # NOTE: 
+    #   This has an override depending on if the other thing 
+    #   is another Sigfig object or just a "normal" number (which 
+    #   we will take to mean it is infinitely precise)
+
+    ##################################################################
+    # - (subtract) 
+    #
+    # NOTE: 
+    #   This has an override depending on if the other thing
+    #   is another Sigfig object or just a "normal" number (which 
+    #   we will take to mean it is infinitely precise)
+
+    ##################################################################
+    # * (multiply) 
+    #
+    # NOTE: 
+    #   This has an override depending on if the other thing  
+    #   is another Sigfig object or just a "normal" number (which 
+    #   we will take to mean it is infinitely precise)
+
+    ##################################################################
+    # / (divide) 
+    #
+    # NOTE: 
+    #   This has an override depending on if the other thing  
+    #   is another Sigfig object or just a "normal" number (which 
+    #   we will take to mean it is infinitely precise)
+
     
 
 '''
