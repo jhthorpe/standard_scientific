@@ -39,7 +39,7 @@ def exponent_from_float(x: float) -> int:
 
 
 #################################################################################
-# Sigfig
+# SigFig
 #
 # A class that represents a piece of data in scientific notation and tracks its
 # significant figures
@@ -48,14 +48,14 @@ def exponent_from_float(x: float) -> int:
 #   This uses the default dataclass constructors, which do NOT guarentee that
 #   your significant figure data makes ANY sense at all. For example...
 #
-#   pi = Sigfig(value = 3.14, sigfigs = 2, exponent = -1)
+#   pi = SigFig(value = 3.14, sigfigs = 2, exponent = -1)
 #
 # will have the following problems:
 #   a. the value is 3.14 instead of 3.1, as indicated by the sigfigs
 #   b. the value is 3.14 instead of 0.314, as indicated by the exponent
 #
 # To ensure correct construction, ALWAYS use the "from_float" function: 
-#   pi = Sigfig.from_float(value = 3.14, sigfigs = 2)
+#   pi = SigFig.from_float(value = 3.14, sigfigs = 2)
 #
 #   pi.value = 3.1
 #   pi.sigfigs = 2
@@ -64,7 +64,7 @@ def exponent_from_float(x: float) -> int:
 #
 @functools.total_ordering
 @dataclass
-class Sigfig:
+class SigFig:
     '''Class for representing data in scientific notation with significant figures'''
     value: float
     sigfigs: int
@@ -72,20 +72,20 @@ class Sigfig:
 
     #########################################################
     # from_float
-    # Generates a Sigfig from a floating point with the designated number of significant digits
+    # Generates a SigFig from a floating point with the designated number of significant digits
     #
     @classmethod
     def from_float(cls, value: float, sigfigs: int):
         '''Given a python float and number of sigfigs, return a Sigfit_SI object''' 
         assert(isinstance(float(value), float)), f"Value {value} could not be converted to float."
-        assert(isinstance(int(sigfigs), int)), f"Sigfigs {sigfigs} could not be converted to int."
+        assert(isinstance(int(sigfigs), int)), f"SigFigs {sigfigs} could not be converted to int."
 
         #now, we need to round the float to the sigfigs
         fv = float(value)
         sf = int(sigfigs)
         exp = exponent_from_float(fv)
 
-        return Sigfig(value = round(fv, (sf - 1) - exp), sigfigs = sf, exponent = exp) 
+        return SigFig(value = round(fv, (sf - 1) - exp), sigfigs = sf, exponent = exp) 
 
 
     #########################################################
@@ -97,30 +97,29 @@ class Sigfig:
     # == (equality) 
     # 
     # NOTE:
-    #   This has an override depending on if the other thing 
-    #   is another Sigfig object or just a "normal" number (which 
-    #   we will take to mean it is infinitely precise). That is, 
-    #   the two values MUST agree 0.5 of one more digit than they are
-    #   significant to.
+    #   This operation can ONLY be valid between two significant figures,
+    #   since, by definition, we MUST know to how many significant digits we
+    #   are comparing
     #
     def __eq__(self, other):
-        if (isinstance(other, Sigfig)):
+        if (isinstance(other, SigFig)):
             return (self.sigfigs == other.sigfigs and
                     self.exponent == other.exponent and
                     abs(self.value - other.value) < (5.0 * pow(10., -self.sigfigs + self.exponent)))
         else:
-            return self.value < other
+            return NotImplemented 
 
     ##################################################################
     # < (strictly less than)
     #
     # NOTE:
     #   This one has an override dependong on if the other 
-    #   this in another Sigfig object or just a "normal" number,
-    #   though precision does not matter in this case
+    #   this in another SigFig object or just a "normal" number,
+    #   though precision does not matter in this case since we
+    #   ``always'' store the sigfig number via from_float
     #
     def __lt__(self, other):
-        if (isinstance(other, Sigfig)):
+        if (isinstance(other, SigFig)):
             return self.value < other.value
         else:
             return self.value < other
@@ -130,32 +129,77 @@ class Sigfig:
     #
     # NOTE: 
     #   This has an override depending on if the other thing 
-    #   is another Sigfig object or just a "normal" number (which 
-    #   we will take to mean it is infinitely precise)
+    #   is another SigFig object or just a "normal" number (which 
+    #   we will take to mean it is infinitely precise and the sigfigs
+    #   are just those of the original)
+    #
+    #
+    def __add__(self, other):
+        if (isinstance(other, SigFig)):
+            return NotImplemented
+        else:
+            return SigFig.from_float(value = self.value + other, 
+                                     sigfigs = self.sigfigs)
 
     ##################################################################
     # - (subtract) 
     #
     # NOTE: 
-    #   This has an override depending on if the other thing
-    #   is another Sigfig object or just a "normal" number (which 
-    #   we will take to mean it is infinitely precise)
+    #   This has an override depending on if the other thing 
+    #   is another SigFig object or just a "normal" number (which 
+    #   we will take to mean it is infinitely precise and the sigfigs
+    #   are just those of the original)
+    #
+    #
+    def __sub__(self, other):
+        if (isinstance(other, SigFig)):
+            return NotImplemented
+        else:
+            return SigFig.from_float(value = self.value - other, 
+                                     sigfigs = self.sigfigs)
 
     ##################################################################
     # * (multiply) 
     #
     # NOTE: 
-    #   This has an override depending on if the other thing  
-    #   is another Sigfig object or just a "normal" number (which 
-    #   we will take to mean it is infinitely precise)
+    #   This has an override depending on if the other thing 
+    #   is another SigFig object or just a "normal" number (which 
+    #   we will take to mean it is infinitely precise and the sigfigs
+    #   are just those of the original)
+    #
+    #   The rule is as follows: we multiply the two numbers and take the
+    #   result's significant figures as the minimum of the two input's 
+    #   signifcant figures
+    #
+    def __mul__(self, other):
+        if (isinstance(other, SigFig)):
+            return SigFig.from_float(value = self.value * other.value, 
+                                     sigfigs = min(self.sigfigs, other.sigfigs))
+        else:
+            return SigFig.from_float(value = self.value * other, 
+                                     sigfigs = self.sigfigs)
+
 
     ##################################################################
     # / (divide) 
     #
     # NOTE: 
-    #   This has an override depending on if the other thing  
-    #   is another Sigfig object or just a "normal" number (which 
-    #   we will take to mean it is infinitely precise)
+    #   This has an override depending on if the other thing 
+    #   is another SigFig object or just a "normal" number (which 
+    #   we will take to mean it is infinitely precise and the sigfigs
+    #   are just those of the original)
+    #
+    #   The rule is as follows: we divide the two numbers and take the
+    #   result's significant figures as the minimum of the two input's 
+    #   signifcant figures
+    #
+    def __truediv__(self, other):
+        if (isinstance(other, SigFig)):
+            return SigFig.from_float(value = self.value / other.value, 
+                                     sigfigs = min(self.sigfigs, other.sigfigs))
+        else:
+            return SigFig.from_float(value = self.value / float(other), 
+                                     sigfigs = self.sigfigs)
 
     
 
