@@ -133,14 +133,35 @@ class SigFig:
     #   we will take to mean it is infinitely precise and the sigfigs
     #   are just those of the original)
     #
+    #   The rule is as follows. The number of digits of precision
+    #   of the rounded result of adding two numbers must be 
+    #   equivilant to the limitting number of digits of precision
+    #   of the two numbers, and the number of significant figures 
+    #   in the resulting value must be adjusted to make this true.
+    #
+    #   The limiting digits place is such that
+    #       -1 is the tenths place,
+    #        0 is the ones place
+    #       +1 is the tens place
+    #
+    #   Then we always need to set the number of sig fig to 
+    #   the power of the exponent of the result minus one less
+    #   than this number
+    #   
     #
     def __add__(self, other):
         if (isinstance(other, SigFig)):
-            return NotImplemented
+            limd = max(-(self.sigfigs - 1) + self.exponent,
+                       -(other.sigfigs - 1) + other.exponent)
+            val = self.value + other.value
+            ex = exponent_from_float(ex)
+            return SigFig(value = val, sigfigs = ex - (limd - 1))
         else:
-            return SigFig.from_float(value = self.value + other, 
-                                     sigfigs = self.sigfigs)
-
+            limd = -(self.sigfigs - 1) + self.exponent
+            val = self.value + other
+            ex = exponent_from_float(ex)
+            return SigFig(value = val, sigfigs = ex - (limd - 1))
+    
     ##################################################################
     # - (subtract) 
     #
@@ -150,13 +171,21 @@ class SigFig:
     #   we will take to mean it is infinitely precise and the sigfigs
     #   are just those of the original)
     #
+    #   see __add__ for description
     #
     def __sub__(self, other):
         if (isinstance(other, SigFig)):
-            return NotImplemented
+            limd = max(-(self.sigfigs - 1) + self.exponent,
+                       -(other.sigfigs - 1) + other.exponent)
+            val = self.value - other.value
+            ex = exponent_from_float(ex)
+            return SigFig(value = val, sigfigs = ex - (limd - 1))
         else:
-            return SigFig.from_float(value = self.value - other, 
-                                     sigfigs = self.sigfigs)
+            limd = -(self.sigfigs - 1) + self.exponent
+            val = self.value - other
+            ex = exponent_from_float(ex)
+            return SigFig(value = val, sigfigs = ex - (limd - 1))
+    
 
     ##################################################################
     # * (multiply) 
