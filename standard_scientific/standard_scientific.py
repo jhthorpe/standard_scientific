@@ -104,7 +104,15 @@ class SigFig:
     # NOTE:
     #   This operation can ONLY be valid between two significant figures,
     #   since, by definition, we MUST know to how many significant digits we
-    #   are comparing
+    #   are comparing.
+    #
+    #   This means that equality can only be determined within the context of the
+    #   significant figures of one (or both, which must be equal, in the case of two sigfigs).
+    #   
+    #   This packages takes the view that this means the difference between the sigfig value 
+    #   and the value to which it is compared must be less than 5 in the place ONE LESS than
+    #   the last significant place in the sigfig. That is:
+    #       1.23 == x IFF |1.23 - x| < 0.005 
     #
     def __eq__(self, other):
         if (isinstance(other, SigFig)):
@@ -112,7 +120,7 @@ class SigFig:
                     self.exponent == other.exponent and
                     abs(self.value - other.value) < (5.0 * pow(10., -self.sigfigs + self.exponent)))
         else:
-            return NotImplemented 
+            return abs(self.value - other) < (5.0 * pow(10., -self.sigfigs + self.exponent))
 
     ##################################################################
     # < (strictly less than)
@@ -159,13 +167,13 @@ class SigFig:
             limd = max(-(self.sigfigs - 1) + self.exponent,
                        -(other.sigfigs - 1) + other.exponent)
             val = self.value + other.value
-            ex = exponent_from_float(ex)
-            return SigFig(value = val, sigfigs = ex - (limd - 1))
+            ex = exponent_from_float(val)
+            return SigFig.from_float(value = val, sigfigs = ex - (limd - 1))
         else:
             limd = -(self.sigfigs - 1) + self.exponent
             val = self.value + other
-            ex = exponent_from_float(ex)
-            return SigFig(value = val, sigfigs = ex - (limd - 1))
+            ex = exponent_from_float(val)
+            return SigFig.from_float(value = val, sigfigs = ex - (limd - 1))
     
     ##################################################################
     # - (subtract) 
@@ -183,13 +191,13 @@ class SigFig:
             limd = max(-(self.sigfigs - 1) + self.exponent,
                        -(other.sigfigs - 1) + other.exponent)
             val = self.value - other.value
-            ex = exponent_from_float(ex)
-            return SigFig(value = val, sigfigs = ex - (limd - 1))
+            ex = exponent_from_float(val)
+            return SigFig.from_float(value = val, sigfigs = ex - (limd - 1))
         else:
             limd = -(self.sigfigs - 1) + self.exponent
             val = self.value - other
-            ex = exponent_from_float(ex)
-            return SigFig(value = val, sigfigs = ex - (limd - 1))
+            ex = exponent_from_float(val)
+            return SigFig.from_float(value = val, sigfigs = ex - (limd - 1))
     
 
     ##################################################################
