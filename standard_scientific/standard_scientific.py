@@ -25,6 +25,10 @@ import functools
 from dataclasses import dataclass
 from decimal import Decimal
 import re
+import numpy as np
+import warnings
+
+eps = np.finfo(float).eps
 
 #################################################################################
 # exponent_from_float
@@ -37,7 +41,30 @@ def exponent_from_float(x: float) -> int:
 
     return len(digits) + exponent - 1
 
+#################################################################################
+# w_round
+#
+# A rounding function that produces warnings if the rounding is sensitive to 
+# machine precision
+def w_round(x: float, d: int) -> float:
+    '''A rounding function that produces warnings if the rounding is sensitive to relative 
+        machine error'''
+    x = float(x)
+    di = int(d)
+    ex = exponent_from_float(x)
 
+    rxf = round(x, di)
+    uxf = round(x + x*eps, di)
+    lxf = round(x - x*eps, di)
+
+    if abs(uxf - lxf) > (5.0 * pow(10., -di - 1 )):
+        uex = exponent_from_float(uxf)
+        lex = exponent_from_float(lxf)
+        warnings.warn(UserWarning(f"{x:.{ex + di + 1}e} rounding is sensitive to machine precision: {uxf:.{uex + di + 1}e} vs {lxf:.{lex + di + 1}e}")) 
+
+    return rxf
+
+    
 #################################################################################
 # SigFig
 #
@@ -88,8 +115,30 @@ class SigFig:
         #now, we need to round the float to the sigfigs
         exp = exponent_from_float(fv)
 
-        return SigFig(value = round(fv, (sf - 1) - exp), sigfigs = sf, exponent = exp) 
+        return SigFig(value = w_round(fv, (sf -1) - exp), sigfigs = sf, exponent = exp) 
 
+    #########################################################
+    # sigfig_place
+    #
+    # Returns the "place" of the last significant figure IN DECIMAL NOTATION, defined
+    # such that 
+    # Value : "place"
+    # 1.23   -> -2 
+    # 12.3   -> -1
+    # 123.   ->  0
+    # 1.2e+2 ->  1
+    #
+    # How this work. Consider 123. with three significant figures. In SI
+    # we would write this as 1.23 x 10**2 . There's three sig figs, the but one before the 
+    # decimal, so there's TWO (n-1) digits after the decimal, which would give us -2 as the place. 
+    # This then needs to be adjusted to the left by +2, because of the x 10**2 power, leaving us with 
+    # the "place" of the last significant digit being 0. This yeilds the equation below. 
+    #
+    # Importantly, this means that the round function takes exactly the negative of this value
+    # to produce our closest approximation of the true sigfificant figures in the number
+    #
+    def sigfig_place(self):
+        return self.exponent - (self.sigfigs - 1) 
 
     #########################################################
     # to string
@@ -118,9 +167,9 @@ class SigFig:
         if (isinstance(other, SigFig)):
             return (self.sigfigs == other.sigfigs and
                     self.exponent == other.exponent and
-                    abs(self.value - other.value) < (5.0 * pow(10., -self.sigfigs + self.exponent)))
+                    abs(self.value - other.value) < (5.0 * pow(10., self.sigfig_place() - 1))) 
         else:
-            return abs(self.value - other) < (5.0 * pow(10., -self.sigfigs + self.exponent))
+            return abs(self.value - other) < (5.0 * pow(10., self.sigfig_place() - 1)) 
 
     ##################################################################
     # < (strictly less than)
@@ -164,16 +213,15 @@ class SigFig:
     #
     def __add__(self, other):
         if (isinstance(other, SigFig)):
-            limd = max(-(self.sigfigs - 1) + self.exponent,
-                       -(other.sigfigs - 1) + other.exponent)
-            val = self.value + other.value
+            limd = max(self.sigfig_place(), other.sigfig_place())
+            val = w_round(self.value + other.value, -limd)
             ex = exponent_from_float(val)
-            return SigFig.from_float(value = val, sigfigs = ex - (limd - 1))
+            return SigFig.from_float(value = val, sigfigs = ex - limd + 1)
         else:
-            limd = -(self.sigfigs - 1) + self.exponent
-            val = self.value + other
+            limd = self.sigfig_place() 
+            val = w_round(self.value + other, -limd)
             ex = exponent_from_float(val)
-            return SigFig.from_float(value = val, sigfigs = ex - (limd - 1))
+            return SigFig.from_float(value = val, sigfigs = ex - limd + 1)
     
     ##################################################################
     # - (subtract) 
@@ -188,16 +236,15 @@ class SigFig:
     #
     def __sub__(self, other):
         if (isinstance(other, SigFig)):
-            limd = max(-(self.sigfigs - 1) + self.exponent,
-                       -(other.sigfigs - 1) + other.exponent)
-            val = self.value - other.value
+            limd = max(self.sigfig_place(), other.sigfig_place())
+            val = w_round(self.value - other.value, -limd)
             ex = exponent_from_float(val)
-            return SigFig.from_float(value = val, sigfigs = ex - (limd - 1))
+            return SigFig.from_float(value = val, sigfigs = ex - limd + 1) 
         else:
-            limd = -(self.sigfigs - 1) + self.exponent
-            val = self.value - other
+            limd = self.sigfig_place() 
+            val = w_round(self.value - other, -limd)
             ex = exponent_from_float(val)
-            return SigFig.from_float(value = val, sigfigs = ex - (limd - 1))
+            return SigFig.from_float(value = val, sigfigs = ex - limd + 1)
     
 
     ##################################################################

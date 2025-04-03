@@ -1,168 +1,313 @@
 # test_sigfigs.py
 #
 # Provides interface with Pytest for testing the sigfigs class
+# and related functionality
 
 import pytest
 
 import standard_scientific as si 
 
-def test_exponent_from_float():
-
-    assert(si.exponent_from_float(    3.14) ==  0)
-    assert(si.exponent_from_float(      10) ==  1)
-    assert(si.exponent_from_float(     1e6) ==  6)
-    assert(si.exponent_from_float(     578) ==  2)
-    assert(si.exponent_from_float(    1e-3) == -3)
-    assert(si.exponent_from_float(   0.015) == -2)
-    assert(si.exponent_from_float(  5.3e-3) == -3)
-    assert(si.exponent_from_float('-57e-8') == -7)
+###############################################################
+# check that from_exponent gives correct exponentials
+#
+@pytest.mark.parametrize("x, r", [
+    (3.14, 0),
+    (10, 1),
+    (1e6, 6),
+    (578, 2),
+    (1e-3, -3),
+    (-10e-3, -2),
+    (0.0015, -3)
+    ])
+def test_exponent_from_float(x, r):
+    assert(si.exponent_from_float(x) ==  r)
     
+###############################################################
+# check that from_exponent gives error on nonsense input
+#
+@pytest.mark.parametrize("x", [
+    (None),
+    ('abc')
+])
+def test_exponent_from_float_excpetions(x):
     with pytest.raises(Exception) as e:
-        si.exponent_from_float(None)
-        si.exponent_from_float('abc')
+        si.exponent_from_float(x)
 
-def test_bad_construction():
+
+###############################################################
+# check that from_float gives error on nonsense input
+#
+@pytest.mark.parametrize("x, y", [
+    (None, None),
+    (None, 1),
+    (1, None),
+    (1.234, 0),
+])
+def test_bad_construction(x, y):
     with pytest.raises(Exception) as e:
-        si.SigFig.from_float(value = 1.234, sigfigs = 0)
+        si.SigFig.from_float(value = x, sigfigs = y)
 
-def test_equalities():
-    x  = si.SigFig.from_float(value =  3.14, sigfigs = 2)
-    xb = si.SigFig.from_float(value =  3.15, sigfigs = 2)
-    y  = si.SigFig.from_float(value =  3.14, sigfigs = 3)
-    z  = si.SigFig.from_float(value = -3.14, sigfigs = 2)
-    a  = si.SigFig.from_float(value = -3.2,  sigfigs = 2)
+###############################################################
+# Check that .from_float with reasonable input gives the right 
+#   values 
+#
+@pytest.mark.parametrize("x, s, v, e", [
+    (3.14, 2, 3.1, 0),
+    (1.23456e10, 6, 1.23456e10, 10),
+    (-12.34e-2, 5, -1.2340e-1, -1)
+    ])
+def test_from_float(x, s, v, e):
+    a = si.SigFig.from_float(x, s)
+    assert(a.value == v)
+    assert(a.exponent == e)
+    assert(a.sigfigs == s)
 
-    assert(x.value == 3.1)
-    assert(x.sigfigs == 2)
-    assert(x.exponent == 0)
 
-    assert(x == x)
-    assert(x == xb)
-    assert(not(x == y))
-    assert(not(x == z))
+###############################################################
+# check that the .sigfig_place() function returns the 
+# correct definition of the places
+@pytest.mark.parametrize("x, y, p", [
+    (210.123, 6, -3),
+    (210.12 , 5, -2),
+    (210.1  , 4, -1),
+    (210    , 3,  0),
+    (2.1e2  , 2,  1),
+    (2e2    , 1,  2)
+    ])
+def test_sigfig_place(x, y, p):
+    a = si.SigFig.from_float(x, y)
+    assert(a.sigfig_place() == p)
 
-    assert(z < x)
-    assert(z <= x)
-    assert(z > a)
-    assert(z >= a)
+###############################################################
+# check the == operator for SigFig == SigFig
+#
+@pytest.mark.parametrize("x, s, y, t", [
+    (3.14, 2, 3.13, 2)
+    ])
+def test_equals_SF_SF(x, s, y, t):
+    assert(si.SigFig.from_float(x, s) == si.SigFig.from_float(y,t))
 
-    assert(z < 5)
-    assert(z > -3.5)
+###############################################################
+# check the != operator for SigFig != SigFig
+#
+@pytest.mark.parametrize("x, s, y, t", [
+    (3.14, 2, 3.16, 2)
+    ])
+def test_not_equals_SF_SF(x, s, y, t):
+    assert(si.SigFig.from_float(x, s) != si.SigFig.from_float(y,t))
 
-    #check the rounding examples
-    assert(y == 3.141)
-    assert(y == 3.1449)
-    assert(y != 3.1451)
-    assert(y != 3.1499)
-    assert(y != 3.15)
+###############################################################
+# check the == operator for SigFig == float 
+#
+@pytest.mark.parametrize("x, s, f", [
+    (10034.44, 7, 10034.44),
+    (10034.44, 7, 10034.4449),
+    (10034.44, 7, 10034.4365)
+    ])
+def test_equals_SF_f(x, s, f):
+    assert(si.SigFig.from_float(x, s) == f)
 
-def test_mult_div():
+###############################################################
+# check the != operator for SigFig != float 
+#
+@pytest.mark.parametrize("x, s, f", [
+    (10034.44, 7, 10034.446),
+    (10034.44, 7, 10034.433)
+    ])
+def test_not_equals_SF_f(x, s, f):
+    assert(si.SigFig.from_float(x, s) != f)
 
-    # * and / Operations with "exact" digits
-    x10 = si.SigFig.from_float(value = 10., sigfigs = 2)
-    x100 = si.SigFig.from_float(value = 100., sigfigs = 2)
-    y10 = si.SigFig.from_float(value = 10., sigfigs = 3)
-    y100 = si.SigFig.from_float(value = 100., sigfigs = 3)
+###############################################################
+# Test < 
+#
+@pytest.mark.parametrize("x, s, y, t", [
+    (3.14, 2, 3.16, 2),
+    (10034.44, 7, 10034.45, 7),
+    ])
+def test_less_SF_SF(x, s, y, t):
+    assert(si.SigFig.from_float(x, s) < si.SigFig.from_float(y,t))
+    assert(si.SigFig.from_float(x, s) < y)
 
-    assert(x100 == (x10 * 10))
-    assert(x100 != (y10 * 10))
 
-    assert(x10 == (x100 / 10))
-    assert(x10 != (y100 / 10))
+###############################################################
+# __mult__ good 
+#
+@pytest.mark.parametrize("x, v, y", [
+    (si.SigFig.from_float(10., 2), 30., si.SigFig.from_float(300., 2)),
+    (si.SigFig.from_float(10., 2), si.SigFig.from_float(30., 3), si.SigFig.from_float(300., 2))
+    ])
+def test_mult_good(x, v, y):
+    assert(x * v  == y) 
 
-    # * and / Operations with other SigFigs
-    assert(x100 == (y10 * x10))
-    assert(y100 != (y10 * x10))
+###############################################################
+# __mult__ bad
+#
+@pytest.mark.parametrize("x, v, y", [
+    (si.SigFig.from_float(10., 2), 30., si.SigFig.from_float(300., 3)),
+    (si.SigFig.from_float(10., 2), si.SigFig.from_float(30., 3), si.SigFig.from_float(300., 3))
+    ])
+def test_mult_bad(x, v, y):
+    assert(x * v != y) 
 
-    assert(x10 == (y100 / x10))
-    assert(y10 != (y100 / x10))
+###############################################################
+# __div__ good 
+#
+@pytest.mark.parametrize("x, v, y", [
+    (si.SigFig.from_float(10., 2), 30., si.SigFig.from_float(300., 2)),
+    (si.SigFig.from_float(10., 2), si.SigFig.from_float(30., 3), si.SigFig.from_float(300., 2))
+    ])
+def test_div_good(x, v, y):
+    assert(y / v  == x) 
 
-def test_add_sub():
+###############################################################
+# __div__ bad
+#
+@pytest.mark.parametrize("x, v, y", [
+    (si.SigFig.from_float(10., 2), 30., si.SigFig.from_float(300., 3)),
+    (si.SigFig.from_float(10., 2), si.SigFig.from_float(30., 3), si.SigFig.from_float(300., 3)),
+    (si.SigFig.from_float(10., 2), si.SigFig.from_float(30., 3), si.SigFig.from_float(300., 1))
+    ])
+def test_div_bad(x, v, y):
+    assert(y / v != x) 
 
-    # + operation 
-    a = si.SigFig.from_float(value = 1001.5, sigfigs = 5)
-    b = si.SigFig.from_float(value = 1012.0, sigfigs = 5) 
-    c = si.SigFig.from_float(value = 10.49, sigfigs = 4)
-    d = si.SigFig.from_float(value = 10.490, sigfigs = 5)
-    e = si.SigFig.from_float(value = 10.4900, sigfigs = 6)
 
-    #these will round to the tenth's place
-    assert(a + c == b)      #this should round 1001.5 + 10.49   to 1012.0, sf = 5
-    assert(a + c.value == b)#this should be the same as above
-    assert(a + d == b)      #this should round 1001.5 + 10.490  to 1012.0, sf = 5 
-    assert(a + d.value == b)#this should be the same as above
-    assert(a + e == b)      #this should round 1001.5 + 10.4900 to 1012.0, sf = 5 
-    assert(a + e.value == b)#this should be the same as above
+###############################################################
+# __add__ good
+@pytest.mark.parametrize("x, y, z", [
+    (si.SigFig.from_float(1001.4, 5), si.SigFig.from_float(10.60, 4), si.SigFig.from_float(1012.0, 5)),
+    (si.SigFig.from_float(1001.4, 5), 10.6, si.SigFig.from_float(1012.0, 5)),
+    (si.SigFig.from_float(1001.4, 5), si.SigFig.from_float(10.60, 6), si.SigFig.from_float(1012.0, 5)),
+    (si.SigFig.from_float(1001.4, 5), si.SigFig.from_float(10, 2), si.SigFig.from_float(1011, 4)),
+    (si.SigFig.from_float(99.9, 3), si.SigFig.from_float(0.1, 1), si.SigFig.from_float(100.0, 4)),
+    (si.SigFig.from_float(-1, 1), si.SigFig.from_float(1, 1), si.SigFig.from_float(0, 1))
+    ])
+def test_add_good(x, y, z):
+    assert(x + y == z)
 
-    #for tests with decreasing sig figs 
-    fx = si.SigFig.from_float(value = 10.5, sigfigs = 3)
-    fy = si.SigFig.from_float(value = 1012.0, sigfigs = 5)
-    gx = si.SigFig.from_float(value = 11, sigfigs = 2)
-    gy = si.SigFig.from_float(value = 1012, sigfigs = 4)
-    hx = si.SigFig.from_float(value = 10, sigfigs = 1)
-    hy = si.SigFig.from_float(value = 1010, sigfigs = 3)
-    ix = si.SigFig.from_float(value = 100, sigfigs = 1)
-    iy = si.SigFig.from_float(value = 1100, sigfigs = 2)
-    assert(a + fx == fy) #this should round 1001.5 + 10.5 to 1012.0, sf = 5
-    assert(a + gx == gy) #this should round 1001.5 + 11.  to 1012. , sf = 4 
-    assert(a + hx == hy) #this should round 1001.5 + 1e1  to 1.01e3, sf = 3
-    assert(a + ix == iy) #this should round 1001.5 + 1e2  to 1.1e3 , sf = 2
+###############################################################
+# __add__ dangerous
+#
+@pytest.mark.parametrize("x, y", [
+    (si.SigFig.from_float(1, 1), si.SigFig.from_float(0.5, 1)),
+    (si.SigFig.from_float(10, 2), si.SigFig.from_float(0.5, 1))
+    ])
+def test_add_bad(x, y):
+    with pytest.warns(UserWarning) as w:
+        a = x + y 
 
-    #testing going up an order of magnatude
-    jx = si.SigFig.from_float(value = 99.9, sigfigs = 3)
-    jy = si.SigFig.from_float(value =  1.0, sigfigs = 2)
-    jz = si.SigFig.from_float(value = 100.9, sigfigs = 4)
-    assert(jx + jy == jz)
+###############################################################
+# __sub__ dangerous
+#
+@pytest.mark.parametrize("x, y", [
+    (si.SigFig.from_float(1, 1), si.SigFig.from_float(0.5, 1)),
+    (si.SigFig.from_float(10, 2), si.SigFig.from_float(0.5, 1))
+    ])
+def test_sub_bad(x, y):
+    with pytest.warns(UserWarning) as w:
+        a = x - y 
 
-    #  - operation 
-    a = si.SigFig.from_float(value = 1001.5, sigfigs = 5)
-    b = si.SigFig.from_float(value = 1012.0, sigfigs = 5) 
-    c = si.SigFig.from_float(value = 10.49, sigfigs = 4)
-    d = si.SigFig.from_float(value = 10.490, sigfigs = 5)
-    e = si.SigFig.from_float(value = 10.4900, sigfigs = 6)
+###############################################################
+# __sub__ good
+@pytest.mark.parametrize("x, y, z", [
+    (si.SigFig.from_float(1001.4, 5), si.SigFig.from_float(10.6, 3), si.SigFig.from_float(1012.0, 5)),
+    (si.SigFig.from_float(1001.4, 5), si.SigFig.from_float(10.60, 6), si.SigFig.from_float(1012.0, 5)),
+    (si.SigFig.from_float(1001.4, 5), 10.60, si.SigFig.from_float(1012.0, 5)),
+    (si.SigFig.from_float(1001, 4), si.SigFig.from_float(10, 2), si.SigFig.from_float(1011.4, 5)),
+    (si.SigFig.from_float(99.9, 3), si.SigFig.from_float(0.1, 1), si.SigFig.from_float(100.0, 4)),
+    (si.SigFig.from_float(-1, 1), si.SigFig.from_float(1, 1), si.SigFig.from_float(0, 1))
+    ])
+def test_sub_good(x, y, z):
+    assert(x == z - y)
 
-    #these will round to the tenth's place
-    assert(b - c == a)      #this should round 1012.0 - 10.49   to 1001.5, sf = 5
-    assert(b - c.value == a)#this should round 1012.0 - 10.49   to 1001.5, sf = 5
-    assert(b - d == a)      #this should round 1012.0 - 10.490  to 1001.5, sf = 5
-    assert(b - d.value == a)#this should round 1012.0 - 10.490  to 1001.5, sf = 5
-    assert(b - e == a)      #this should round 1012.0 - 10.4900 to 1001.5, sf = 5
-    assert(b - e.value == a)#this should round 1012.0 - 10.4900 to 1001.5, sf = 5
+###############################################################
+# test __str__ gives expected results
+#
+@pytest.mark.parametrize("x, y, st", [
+    ( 1.2, 2, '1.2e+00'),
+    (0.12, 2, '1.2e-01'),
+    ( 12., 2, '1.2e+01')
+])
+#testing the string printing
+def test_strings(x, y, st):
+    assert(str(si.SigFig.from_float(x, y)) == st)
 
-    #these will round to variable places
-    fx = si.SigFig.from_float(value = 10.5, sigfigs = 3)
-    fy = si.SigFig.from_float(value = 1012.0, sigfigs = 5)
-    gx = si.SigFig.from_float(value = 11, sigfigs = 2)
-    gy = si.SigFig.from_float(value = 1012, sigfigs = 4)
-    assert(fy - fx == a) #this should round 1012.0 - 10.5   to 1001.5, sf = 5
-    assert(fy - a == fx) #this should round 1012.0 - 1001.5 to   10.5, sf = 3 
-'''
+###############################################################
+# from_float() should throw a warning here, since these values
+# have dangerous precision issues
+#
+@pytest.mark.parametrize("x, y", [
+    (10.5, 2),
+    (-10.5, 2),
+    (1.050e3, 2),
+    (0.55, 1)
+])
+def test_rounding_warnings(x, y):
+    with pytest.warns(UserWarning) as w:
+        a = si.SigFig.from_float(value = x, sigfigs = y) #numerical precision can make this 10 or 11!
 
-    #for tests with decreasing sig figs 
-    fx = si.SigFig.from_float(value = 10.5, sigfigs = 3)
-    fy = si.SigFig.from_float(value = 1012.0, sigfigs = 5)
-    gx = si.SigFig.from_float(value = 11, sigfigs = 2)
-    gy = si.SigFig.from_float(value = 1012, sigfigs = 4)
-    hx = si.SigFig.from_float(value = 10, sigfigs = 1)
-    hy = si.SigFig.from_float(value = 1010, sigfigs = 3)
-    ix = si.SigFig.from_float(value = 100, sigfigs = 1)
-    iy = si.SigFig.from_float(value = 1100, sigfigs = 2)
-    assert(a + fx == fy) #this should round 1001.5 + 10.5 to 1012.0, sf = 5
-    assert(a + gx == gy) #this should round 1001.5 + 11.  to 1012. , sf = 4 
-    assert(a + hx == hy) #this should round 1001.5 + 1e1  to 1.01e3, sf = 3
-    assert(a + ix == iy) #this should round 1001.5 + 1e2  to 1.1e3 , sf = 2
+###############################################################
+# - operator with dangerous results should throw warnings here, 
+# but has safe constructions 
+#
+@pytest.mark.parametrize("x, y, a, b", [
+    (1, 1, 0.5, 1),
+    (0.5, 3, 1, 1),
+])
+def test_warning_on_sub(x, y, a, b):
+    with pytest.warns(UserWarning) as w:
+        z = si.SigFig.from_float(x, y) - si.SigFig.from_float(a, b) 
 
-    #testing going up an order of magnatude
-    jx = si.SigFig.from_float(value = 99.9, sigfigs = 3)
-    jy = si.SigFig.from_float(value =  1.0, sigfigs = 2)
-    jz = si.SigFig.from_float(value = 100.9, sigfigs = 4)
-    assert(jx + jy == jz)
-'''
+###############################################################
+# + operator with dangerous results should throw warnings here, 
+# but has safe constructions 
+#
+@pytest.mark.parametrize("x, y, a, b", [
+    (1, 1, 0.5, 1),
+])
+def test_warning_on_add(x, y, a, b):
+    with pytest.warns(UserWarning) as w:
+        z = si.SigFig.from_float(x, y) + si.SigFig.from_float(a, b) 
+
+################################################################
+# w_round should throw a warning thanks to 
+# dangerous rounding with machine precision
+#
+@pytest.mark.parametrize("x, y", [
+    (10.5, 0),
+    (-10.5, 0)
+])
+def test_w_round_warning(x, y):
+    with pytest.warns(UserWarning) as w:
+        a = si.w_round(x, y)
+
+################################################################
+# Cases where w_round should be identical to round
+#
+@pytest.mark.parametrize("x, y", [
+    (10.234,  3),
+    (10.234,  2),
+    (10.234,  1),
+    (10.234,  0),
+    (10.234, -1),
+    (10.234, -2)
+    ])
+def test_w_round(x, y):
+    assert si.w_round(x, y) == round(x, y) 
+         
+################################################################
+# this should NOT throw a warning since this is a safe rounding
+#
+@pytest.mark.filterwarnings("error")
+@pytest.mark.parametrize("x, y", [
+    (10.9, 1),
+    (10.8, 1),
+    (10.7, 1),
+    (10.6, 1),
+    (10.4, 1),
+    (10.3, 1),
+    (10.2, 1),
+    (10.1, 1),
+])
+def test_no_warining(x, y):
+    a = si.SigFig.from_float(value = x, sigfigs = y) 
     
-def test_strings():
-    x = si.SigFig.from_float(value = 1.234, sigfigs = 2)
-    y = si.SigFig.from_float(value = 0.1234, sigfigs = 2)
-    z = si.SigFig.from_float(value = 12.34, sigfigs = 2)
-    assert(str(x) == '1.2e+00')
-    assert(str(y) == '1.2e-01')
-    assert(str(z) == '1.2e+01')
