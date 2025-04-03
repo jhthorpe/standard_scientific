@@ -32,5 +32,9 @@ Under construction.
 ## Installation
     `python3 -m pip install .`
 
+Testing provided by executing `pytest -W error` within the tests directory. 
+
 ## Import
     `import standard_scientific as si`
+
+
