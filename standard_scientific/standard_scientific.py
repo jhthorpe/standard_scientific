@@ -77,12 +77,15 @@ class SigFig:
     @classmethod
     def from_float(cls, value: float, sigfigs: int):
         '''Given a python float and number of sigfigs, return a Sigfit_SI object''' 
-        assert(isinstance(float(value), float)), f"Value {value} could not be converted to float."
-        assert(isinstance(int(sigfigs), int)), f"SigFigs {sigfigs} could not be converted to int."
 
-        #now, we need to round the float to the sigfigs
         fv = float(value)
         sf = int(sigfigs)
+
+        assert(isinstance(fv, float)), f"Value {value} could not be converted to float."
+        assert(isinstance(sf, int)), f"SigFigs {sigfigs} could not be converted to int."
+        assert(sf > 0), f"Requested sigfigs {sigfigs} cannot be less than 1"
+
+        #now, we need to round the float to the sigfigs
         exp = exponent_from_float(fv)
 
         return SigFig(value = round(fv, (sf - 1) - exp), sigfigs = sf, exponent = exp) 
@@ -92,6 +95,8 @@ class SigFig:
     # to string
     # returns a string of a given float to the designated number of significant figures  
     #
+    def __str__(self):
+        return f"{self.value:.{self.sigfigs-1}e}"
 
     ##################################################################
     # == (equality) 

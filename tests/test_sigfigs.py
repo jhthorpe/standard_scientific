@@ -1,6 +1,6 @@
-# tests.py
+# test_sigfigs.py
 #
-# Provides interface with Pytest 
+# Provides interface with Pytest for testing the sigfigs class
 
 import pytest
 
@@ -20,6 +20,10 @@ def test_exponent_from_float():
     with pytest.raises(Exception) as e:
         si.exponent_from_float(None)
         si.exponent_from_float('abc')
+
+def test_bad_construction():
+    with pytest.raises(Exception) as e:
+        si.SigFig.from_float(value = 1.234, sigfigs = 0)
 
 def test_equalities():
     x  = si.SigFig.from_float(value =  3.14, sigfigs = 2)
@@ -65,3 +69,14 @@ def test_operations():
 
     assert(x10 == (y100 / x10))
     assert(y10 != (y100 / x10))
+
+    # + and - operation with "exact" digits
+
+    
+def test_strings():
+    x = si.SigFig.from_float(value = 1.234, sigfigs = 2)
+    y = si.SigFig.from_float(value = 0.1234, sigfigs = 2)
+    z = si.SigFig.from_float(value = 12.34, sigfigs = 2)
+    assert(str(x) == '1.2e+00')
+    assert(str(y) == '1.2e-01')
+    assert(str(z) == '1.2e+01')
