@@ -14,7 +14,6 @@ Where the number of sig figs passed in are used to round the provided value to t
 *A Note on SigFig Comparison*. Comparison of floating point numbers is inherently a dangerous and complicated process. The inclusion of Significant Figures simplifies this process to some extent, as it provides a rigerous description of exactly which places in a number can be considered, which, *generally*, is far fewer places than significant figures in floating point (double precision) numbers. *However*, there are still edge cases that can be the source of frustration. Take for example the following code snippit:
 
 ```
-import standard_scientific as si
 x = si.SigFig.from_float(value = 1.5, sigfigs = 1) #Does this round to 1 or 2?
 ``` 
 
@@ -26,7 +25,7 @@ y = si.SigFig.from_float(value = 0.50, sigfigs = 2)
 z = x - y #will this be 1 or 0?? 
 ```
 
-where we encounter the strange situation that 1 - 0.50 might, in fact, be either 1 or 0 *depending on the machine noise of the difference in the values*, and that either result *should* be considered as different values in significant figures! This is a natural consequence of the issues comparing floating point number (for a better description, see *https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/*). This problem is somewhat alleviated when uncertainties are provided with the given value, but in the SigFigs class we must settle for providing the user with a warning when it detects the rounding in the `from_float` constructor is sensitive to noise. For you precision nerds out there, this is currently implemented as a check that the different between a `x + x*eps` and `x - x*eps` round to the same SigFig (their difference is less than 0.5 in the last significant digit).
+where we encounter the strange situation that 1 - 0.50 might, in fact, be either 1 or 0 *depending on the machine noise of the difference in the values*, and that either result *should* be considered as different values in significant figures! This is a natural consequence of the issues comparing floating point number (for a better description, see *https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/*). This problem is somewhat alleviated when uncertainties are provided with the given value, but in the SigFigs class we must settle for providing the user with a warning when it detects the rounding in the `from_float` constructor is sensitive to noise. For you precision nerds out there, this is currently implemented as a check that  `x + x*eps` and `x - x*eps` round to the same SigFig, and the comparison between SigFigs is implemented as a check that they differ by less than 0.5 in the last significant digit.  
 
 ## `Scientific_Notation`
 Under construction.
