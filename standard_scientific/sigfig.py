@@ -290,40 +290,4 @@ class SigFig:
             return SigFig.from_float(value = self.value / float(other), 
                                      sigfigs = self.sigfigs)
 
-    
 
-'''
-@dataclass
-class Standard_Scientific:
-#    Class for representing values and uncertainties in scientific notatio
-    value: float
-    standard_uncertainty: float
-    relative_standard_uncertainty: float
-    value_sigfigs: int
-    standard_uncertainty_sigfigs: int
-    relative_standard_uncertainty_sigfigs: int
-    units: str
-    is_exact: bool = False
-
-    #from string
-
-    #to string
-
-    #from_dict (for .json interface)
-    #
-    @classmethod
-    def from_dict(cls, dictionary):
-        return cls(value                = dictionary['value'],
-                   standard_uncertainty = dictionary['standard_uncertainty'],
-                   relative_standard_uncertainty = dictionary['relative_standard_uncertainty'])
-
-    #to dict (for .json interface)
-
-    #add
-
-    #multiply
-
-    #add_with_covariance
-
-    #multiply_with_covariance
-'''

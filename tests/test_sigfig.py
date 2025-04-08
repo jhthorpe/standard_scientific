@@ -1,4 +1,4 @@
-# test_sigfigs.py
+# test_sigfig.py
 #
 # Provides interface with Pytest for testing the sigfigs class
 # and related functionality
