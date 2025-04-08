@@ -1,23 +1,9 @@
-# standard_scientific.py 
+# sigfig.py 
 #
-# Python package for representing values in scientific notation, including
-# significant figures.
+# Defines the SigFig class and associated functions, which implements
+# significant figures creation and manipulation.
 #
-# c = Standard_Scientific.from_string("299 792 458 m s", is_exact=True)
-#
-# c.value == 2.99792458e8
-# c.units == "m s"
-# c.value_sigfigs == 9
-# c.standard_uncertainty == None
-#
-# me = Standard_Scientific.from_string("9.109 383 7139(28) × 10−31 kg")
-#
-# me.value == 9.1093837139e-31
-# me.standard_uncertainty == 0.0000000023e-31 
-# me.relative_standard_uncertainty = 3.1e-10
-# me.standard_uncertainty_sigfigs == 2
-#
-# Revision History:
+# (Major) Revision History:
 #   April 2, 2025 : JHT created
 #
 
@@ -28,7 +14,7 @@ import re
 import numpy as np
 import warnings
 
-eps = np.finfo(float).eps
+eps = float(np.finfo(float).eps)
 
 #################################################################################
 # exponent_from_float
