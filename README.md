@@ -11,7 +11,7 @@ a + b == si.SigFig.from_float(1e3, 4), #100.0 with 4 sig figs
 ```
 Where the number of sig figs passed in are used to round the provided value to the correct number of digits (with an important exception discussed below)
 
-###A Note on SigFig Comparison. i
+### A Note on SigFig Comparison. 
 Comparison of floating point numbers is inherently a dangerous and complicated process. The inclusion of Significant Figures simplifies this process to some extent, as it provides a rigerous description of exactly which places in a number can be considered, which, *generally*, is far fewer places than significant figures in floating point (double precision) numbers. *However*, there are still edge cases that can be the source of frustration. Take for example the following code snippit:
 
 ```
