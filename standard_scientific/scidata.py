@@ -8,10 +8,30 @@
 # Revision History:
 #   April 2, 2025 : JHT created
 #
+#
+# NOTE: more funny business representing "exact" values in an inexact 
+#       framework. 
+#
+#       There are certain values in science which are "exact" or 
+#       "defined" quantities. For instance, CODATA 2022 defines
+#       the speed of light as EXACTLY 299792458 m s-1, and uses
+#       this (among other values) to define inexact quantities
+#       with known and defined uncertainties. This, however, 
+#       raises the usual problem that this value is *actually* 
+#       299792458 +/- some amount of machine noise when 
+#       represented as a float. So, as usual, we must deal with this.
+#       The end consequence is that in THIS package, we do not
+#       represent the value with a standard uncertainty, but we DO
+#       give it sig figs in the decimal place given by epsilon. 
+#       
+#       
+#   
+#
 
 #imports from within this package
 from standard_scientific.sigfig import eps
 from standard_scientific.sigfig import SigFig 
+from standard_scientific.sigfig import exponent_from_float
 
 #external imports
 import functools
@@ -68,17 +88,25 @@ class SciData:
     #
     @classmethod
     def from_str(cls, s):
+
+        # Defaults should all cause errors on SigFig construction unless we specifically
+        # override them later
         val = None
         unc = None
         rel = None
-        exact = False
+        exact = None
+        val_sfig = None
+        unc_sfig = None
+        rel_sfig = None
 
         #characters that indicate the start of the exponent section 
         #after removal of whitespace
         #
-        # NOTE: annoyingly, it MATTERS that x10** and x10^ is searched *before*
-        #       x10, because x10 is a substring of both and we need to extract it
+        # NOTE: annoyingly, it MATTERS that x10** and x10^ is searched before
+        #       x10, because x10 is a substring of both and we need avoid making * 
+        #       and ^ characters in the exponent split of the string
         exponent_strings = ["e", "E", "x10**", "x10^", "x10"]
+        start_strings = ["+", "-"] #valid start strings
 
         s_in = s
         print(f"At start : {s}")#TESTING
@@ -88,76 +116,199 @@ class SciData:
         print(f"After trim : {s}") #TESTING
 
         #Now, if we have an exponent section, extract it. 
-        #NOTE, this *intentionally* keeps badly formated strings with multiple
+        #NOTE, this intentionally keeps badly formated strings with multiple
         #      matches which will fail upon float conversion (and need to be caught) 
         s_pow = "0" #default exponent power 
-        s_exp = 1. #default exponent
+        f_exp = None #default exponent
         for sub in exponent_strings:
             if sub in s:
                 s, s_pow = s.split(sub)
                 break
         try:
-            s_pow = int(s_pow) #important INT conversion to handle things like 8.9
-            s_exp = pow(10., s_pow)
+            f_exp = pow(10., int(s_pow))
         except Exception as e:
             assert(False), f"Exception was thrown while attempting to extract exponent of {s_in}. {e}"
-        print(f"Pre and post exponents are {s} and {s_pow} // {s_exp}") #TESTING
+        print(f"Pre and post exponents are {s} and {f_exp}") #TESTING
 
-        #Exponent is dealt with, now to extract uncertainties if they are there 
-        # NOTE: the correct uncertainties will map from a string started with ( and ending with )
-        #       and will contain ONLY digits between these strings. We implicitly check for this
-        #       behavior by conversion to int. This int is then converted to a float by 
-        #       finding the decimal places remaining in the string before (, which the 
-        #       uncertainty "replaces". That is, the string
-        #       1.23(45) encodes a value of 1.23 and an uncertainty of (0.45).
-        #
-        #       NOTE that in this case there should be no leading zeros, buuuut if there are then
-        #       we can just accept them and convert as would be intended (treating those zeros
-        #       as significant and using their number to move the decimal) 
-        unc_sfig = None
+
+        # Check for uncertainty string 
+        # 
+        # Case a) the standard uncertainty string exists, extract
+        #        
+        # Case b) there is no uncertainty string and this is an "exact" value
+        s_unc = None
         if ("(" in s and ")" in s):
+            exact = False
+
+            #extract the uncertainty string from the value string
             s, s_unc = s.split("(")
             s_unc, s_tmp = s_unc.split(")")
 
-            excact = False
-
-            print(f"value {s} and uncertainty {s_unc} after extraction!") #TESTING
-
-            #extract number of sig figs in the uncertainty
-            unc_sfig = len(s_unc)
-
-            #extract location of the uncertainty in the value
-            assert(False), f"JHT has not coded past here!!! THIS IS WHERE TO WORK NEXT" 
-
-            #Convert to int, then to actual value
-
-        #if nothing is found, then 
         else:
             exact = True
 
-
-        # Determine the number of significant figures in the value itself
-        #
-        # Rules
-        #
-        value_sfig = None
-        assert(False), f"JHT has not coded past here!!! Need to handle uncertainty sig figs first"
-
-
-        # Now convert the value at last
-        try:
-            value = float(s) * s_exp
-            print(f"Extracted value was {value}")
-
+        try: 
+            val = float(s) * f_exp
         except Exception as e:
-            assert(False), f"Exception was thrown while attempting to extract value and relative uncertainty of {s_in}. {e}"
+            assert(False), f"Exception was thrown while attempting to extract exact value in {s_in}. {e}"
+        print(f"Extracted value was {val}") #TESTING
+
+        # Obtain sigfigs of the value.
+        #
+        # Case a) The value is not exact, and the number of sigfigs are
+        #         the number of digits in the significant digits string 
+        #
+        # Case b) The value is exact and contains a decimal. The sigfigs
+        #         are either the number of digits that are safe within machine
+        #         precision or the number of digits actually present in the string,
+        #         whichever is smaller.
+        #
+        # Case c) The value is exact and does not contain a decimal. The sigfigs
+        #         are the number of digits safe within machie precision.
+        #
+
+        s_sfig = re.sub('^[+-0]*0+', '', s) #remove all leading zero's following zero or signs 
+        s_sfig = re.sub("^[.]0+", '', s_sfig) #remove any of the leading zero's that follow a decimal point in first position
+        print(f"String without leading zeros {s_sfig}") #TESTING
+
+        if not exact:
+            val_sfig = sum(c.isdigit() for c in s_sfig)
+            print(f"value sigfigs case a) nonexact: {val_sfig}") #TESTING
+        else:
+            if "." in s:
+                val_sfig = sum(c.isdigit() for c in s_sfig)
+                val_sfig = min(val_sfig, exponent_from_float(val) - exponent_from_float(val * eps))
+                print(f"value sigfigs case b) exact with decimal : {val_sfig}") #TESTING
+            else:
+                val_sfig = exponent_from_float(val) - exponent_from_float(val * eps)
+                print(f"value sigfigs case c) exact without decimal : {val_sfig}") #TESTING
+                
+        print(f"Sigfigs of the value was {val_sfig}") #TESTING
+
+        # If inexact, process the uncertainties 
+        if not exact:
+
+            #sigfigs are simply the length of digits of the string
+            unc_sfig = sum(c.isdigit() for c in s_unc)
+            print(f"Sigfigs of the uncertainty was {unc_sfig}") #TESTING
+
+            try:
+                #convert to int
+                i_unc = int(s_unc)
+                
+                #find the decimal place in s
+
+#                unc = i_unc * f_uexp * f_exp
+            except Exception as e:
+                assert(False), f"Exception was thrown during the extraction of the uncertainty in {s_in}. {e}"
+            print(f"Uncertainty of the value was {unc}") #TESTING
+           
+
+###############################################
+        '''
+        # Now, extract the uncertainties if they are there and split the strings for processing 
+        # 
+        # This also sets the exact or inexact parameter, without uncertainties the values
+        # are taken as exact by default!
+        #
+        # Case a) there are given uncertainties and the value is inexcat
+        value_sfig = None
+        unc_sfig = None
+        f_uexp = None
+        if ("(" in s and ")" in s):
+
+            exact = False
+
+            #extract the uncertainty string from the value string
+            s, s_unc = s.split("(")
+            s_unc, s_tmp = s_unc.split(")")
+
+            #Trim leading zeros from the value
+            s = re.sub("^.0*", "", s)
+            print(f"After subs of leading zeros... {s}") #TESTING
+
+            #Assign significant figures to the value after trimming leading zeros 
+            value_sfigs = len(s)
+            for sub in nondigit_characters:
+                value_sfigs -= s.count(sub)
+
+            #The number of sigfigs of the uncertainty is just the number of digits within it
+            unc_sfigs = len(s_unc)
+
+            print()
+
+            #Convert the value. At this point, all that remains in s is the value itself
+            try: 
+                value = float(s) * f_exp
+            except Exception as e:
+                assert(False), f"Exception was thrown while attempting to extract exact value in {s_in}. {e}"
+            print(f"Extracted value was {value}") #TESTING
+
+
+            #if the value has decimal points
+            if "." in s:
+                print(f"THE VALUE HAD DECIMALS") #TESTING
+
+                # number of sigfigs is the length of the string
+
+                exit(1)
+
+            #if no decimal points, then the string is something like:
+            # "1234", "(56)", "e-10"
+            else:
+                print(f"THE VALUE HAD NO DECIMALS") #TESTING
+                
+                #Number of sigfigs minus special characters
+                value_sfigs = len(s) - s.count("+") - s.count("-")
+
+                # 
+
+                exit(1)
+
+
+            #number of sigfigs in uncertainty are equal to the number of values in it
+            unc_sfig = len(s_unc)
+
+
+        # Case b) there are no given uncertainties and the value is exact, no need to
+        #         pre/postprocess zeros since it has "infinite" sigfigs, but machine
+        #         precision sigfigs here. We take this as the number of decimal places
+        #         present in the value times epsilon
+        else:
+            exact = True
+
+            #Convert the value. At this point, all that remains in s is the value itself
+            try: 
+                value = float(s) * f_exp
+            except Exception as e:
+                assert(False), f"Exception was thrown while attempting to extract exact value in {s_in}. {e}"
+            print(f"Extracted value was {value}") #TESTING
+
+            #Now, generate the approximate sigfigs (thanks to machine noise)
+            # Note that this ends up being just the number of digits you can "trust" in 
+            # the floating point arithmatic, BUT in a way that's unique to the system definition
+            # of float and epsilon
+            value_sfig = exponent_from_float(value) - exponent_from_float(value * eps) 
+
+        # If there was an uncertainty, construct it now 
+        if not exact:
+            try:
+                unc = float(int(i_unc) * f_exp * f_uexp) 
+            except Exception as e:
+                assert(False), f"Exception was thrown while attempting to construct uncertainty from {s_in}. {e}"
 
         #convert to sigfigs at end, and form relative uncertainty
-        value_SigFig = SigFig.from_float(value = value, sigfigs = value_sfig)
+        value_SigFig = SigFig.from_float(value = val, sigfigs = val_sfig)
         unc_SigFig = SigFig.from_float(value = unc, sigfigs = unc_sfig) if not exact else None 
         rel_SigFig = unc_SigFig / value_SigFig if not exact else None
 
         return SciData(value = value_SigFig, unc = unc_SigFig, rel_unc = rel_SigFig, is_exact = exact) 
+        '''
+
+        #Generate the sigfigs
+        value_SigFig = SigFig.from_float(value = val, sigfigs = val_sfig)
+
+        return SciData(value = value_SigFig, unc = None, rel_unc = None, is_exact = True) 
 
 
     ##########################

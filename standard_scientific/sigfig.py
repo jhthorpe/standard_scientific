@@ -40,8 +40,8 @@ def w_round(x: float, d: int) -> float:
     ex = exponent_from_float(x)
 
     rxf = round(x, di)
-    uxf = round(x + x*eps, di)
-    lxf = round(x - x*eps, di)
+    uxf = round(x + x*eps, di) if abs(x) > 1. else round(x + eps, di)
+    lxf = round(x - x*eps, di) if abs(x) > 1. else round(x - eps, di) 
 
     if abs(uxf - lxf) > (5.0 * pow(10., -di - 1 )):
         uex = exponent_from_float(uxf)
