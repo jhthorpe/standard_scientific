@@ -9,27 +9,9 @@
 #   April 2, 2025 : JHT created
 #
 #
-# NOTE: more funny business representing "exact" values in an inexact 
-#       framework. 
-#
-#       There are certain values in science which are "exact" or 
-#       "defined" quantities. For instance, CODATA 2022 defines
-#       the speed of light as EXACTLY 299792458 m s-1, and uses
-#       this (among other values) to define inexact quantities
-#       with known and defined uncertainties. This, however, 
-#       raises the usual problem that this value is *actually* 
-#       299792458 +/- some amount of machine noise when 
-#       represented as a float. So, as usual, we must deal with this.
-#       The end consequence is that in THIS package, we do not
-#       represent the value with a standard uncertainty, but we DO
-#       give it sig figs in the decimal place given by epsilon. 
-#       
-#       
-#   
-#
 
 #imports from within this package
-from standard_scientific.sigfig import eps
+from standard_scientific.float_compare import eps
 from standard_scientific.sigfig import SigFig 
 from standard_scientific.sigfig import exponent_from_float
 
@@ -149,29 +131,41 @@ class SciData:
 
         # Obtain sigfigs of the value.
         #
-        # Case a) The value is not exact, and the number of sigfigs are
+        # When first writing this package, I used the following convention, but later decided that this was
+        # likely to cause more problems than it resolved thanks to users expecting "exact" values (which may 
+        # NOT have been created in an exact way...) to be identical to floating point values. As such, I've instead
+        # opted to implement the "as_exact()" feature, and (aggrivatingly), set the number of sigfigs 
+        # to the number of significant digits entered in the string. 
+        #
+        # OLD CASES:
+        #
+        # OLD Case a) The value is not exact, and the number of sigfigs are
         #         the number of digits in the significant digits string 
         #
-        # Case b) The value is exact and contains a decimal. The sigfigs
+        # OLD Case b) The value is exact and contains a decimal. The sigfigs
         #         are either the number of digits that are safe within machine
         #         precision or the number of digits actually present in the string,
         #         whichever is smaller.
         #
-        # Case c) The value is exact and does not contain a decimal. The sigfigs
+        # OLD Case c) The value is exact and does not contain a decimal. The sigfigs
         #         are the number of digits safe within machie precision.
         #
 
         s_sfig = re.sub('^[+-0]*0+', '', s) #remove all leading zero's following zero or signs 
         s_sfig = re.sub("^[.]0+", '', s_sfig) #remove any of the leading zero's that follow a decimal point in first position
+        
+        # NEW defintion of sig figs in a value
+        val_sfig = sum(c.isdigit() for c in s_sfig)
 
-        if not exact:
-            val_sfig = sum(c.isdigit() for c in s_sfig)
-        else:
-            if "." in s:
-                val_sfig = sum(c.isdigit() for c in s_sfig)
-                val_sfig = min(val_sfig, exponent_from_float(val) - exponent_from_float(val * eps))
-            else:
-                val_sfig = exponent_from_float(val) - exponent_from_float(val * eps)
+        # OLD distinction between various "kinds" of exact values
+        # if not exact:
+        #    val_sfig = sum(c.isdigit() for c in s_sfig)
+        # else:
+        #    if "." in s:
+        #        val_sfig = sum(c.isdigit() for c in s_sfig)
+        #        val_sfig = min(val_sfig, exponent_from_float(val) - exponent_from_float(val * eps))
+        #    else:
+        #        val_sfig = exponent_from_float(val) - exponent_from_float(val * eps)
 
         # Value is done, save it's sigfig
         value_SigFig = SigFig.from_float(value = val, sigfigs = val_sfig)
@@ -249,7 +243,7 @@ class SciData:
 
             # We do NOT have a relative uncertainty, use SigFig division
             else:
-                return SciData(value = value, unc = unc, rel_unc = unc / value, is_exact = False) 
+                return SciData(value = value, unc = unc, rel_unc = unc / abs(value), is_exact = False) 
 
         #in case of exact data
         else:
@@ -293,6 +287,8 @@ class SciData:
     # in scientific litt. Note that these comparisions will 
     # be SigFig comparisions!
     #
+    # NOTE that the comparisons here break down if the value gets too close to 0.000000......e0
+    #
     def __eq__(self, other):
         if (isinstance(other, SciData)):
             if (not self.is_exact and not other.is_exact):
@@ -300,11 +296,10 @@ class SciData:
                      self.unc == other.unc and
                      self.rel_unc == other.rel_unc and
                      self.is_exact == other.is_exact)
-            elif (self.is_exact and other.is_exact):
-                return (self.value == other.value)
-            return False
+            else:
+                return abs(self.as_exact() - other.as_exact()) < max(abs(self.as_exact()), abs(other.as_exact())) * eps 
         else:
-            return self.value == other
+            assert(False), f"__eq__ is only defined between two instances of the SciData class" 
      
 
     ##########################
@@ -320,3 +315,17 @@ class SciData:
         else:
             return (self.value < other)
 
+    ##########################
+    # as_exact()
+    # 
+    # returns the value this data as if it was exact (infinite sigfigs)
+    def as_exact(self):
+        return self.value.as_exact()
+
+    ##########################
+    # string conversion
+#    def __str__(self):
+#        if self.is_exact:
+#            return str(self.value) + "(exact)"
+#        else:
+#            assert(False), f"Not implemented yet!"

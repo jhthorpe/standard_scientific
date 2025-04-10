@@ -16,7 +16,7 @@ import standard_scientific as si
      (si.SciData(si.SigFig.from_float(12.345, 5), None, None, True),
       si.SciData(si.SigFig.from_float(12.345, 5), None, None, True)) 
     ])
-def test_comparison_good(a, b):
+def test_equals_good(a, b):
     assert(a == b)
 
 ###############################################################
@@ -24,7 +24,7 @@ def test_comparison_good(a, b):
 #
 @pytest.mark.parametrize("a, b", [
      (si.SciData(si.SigFig.from_float(12.345, 5), si.SigFig.from_float(0.067, 2), si.SigFig.from_float(5.4e-3, 2), False),
-      si.SciData(si.SigFig.from_float(12.345, 5), si.SigFig.from_float(0.067, 2), si.SigFig.from_float(5.4e-3, 2), True)),
+      si.SciData(si.SigFig.from_float(12.341, 5),                           None,                            None, True)),
      (si.SciData(si.SigFig.from_float(12.345, 5), si.SigFig.from_float(0.067, 2), si.SigFig.from_float(5.4e-3, 2), False),
       si.SciData(si.SigFig.from_float(12.345, 5), si.SigFig.from_float(0.067, 2), si.SigFig.from_float(5.5e-3, 2), False)),
      (si.SciData(si.SigFig.from_float(12.345, 5), si.SigFig.from_float(0.067, 2), si.SigFig.from_float(5.4e-3, 2), False),
@@ -38,7 +38,7 @@ def test_comparison_good(a, b):
      (si.SciData(si.SigFig.from_float(12.345, 6), si.SigFig.from_float(0.067, 2), si.SigFig.from_float(5.4e-3, 2), False),
       si.SciData(si.SigFig.from_float(12.345, 5), si.SigFig.from_float(0.067, 2), si.SigFig.from_float(5.4e-3, 2), False)),
     ])
-def test_comparison_good(a, b):
+def test_not_equals_good(a, b):
     assert(a != b)
 
 
@@ -95,27 +95,20 @@ def test_from_str_bad(s):
                              rel_unc = None, 
                              is_exact = True)), 
     ("123", 
-     si.SciData.from_SigFigs(value = si.SigFig.from_float(123, si.exponent_from_float(123) - si.exponent_from_float(123 * si.eps)), 
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(123, 3), 
                              unc = None, 
                              rel_unc = None, 
                              is_exact = True)), 
     ("0123", 
-     si.SciData.from_SigFigs(value = si.SigFig.from_float(123, si.exponent_from_float(123) - si.exponent_from_float(123 * si.eps)), 
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(123, 3), 
                              unc = None, 
                              rel_unc = None, 
                              is_exact = True)), 
     ("01230", 
-     si.SciData.from_SigFigs(value = si.SigFig.from_float(1230, si.exponent_from_float(1230) - si.exponent_from_float(1230 * si.eps)), 
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(1230, 4), 
                              unc = None, 
                              rel_unc = None, 
                              is_exact = True)), 
-    ("1.234567892345679123456789", 
-     si.SciData.from_SigFigs(value = si.SigFig.from_float(1.234567892345679123456789, 
-                                                          si.exponent_from_float(1.234567892345679123456789) 
-                                                          - si.exponent_from_float(1.234567892345679123456789 * si.eps)), 
-                             unc = None, 
-                             rel_unc = None, 
-                             is_exact = True)),
     ("+00.0013(3)",
      si.SciData.from_SigFigs(value = si.SigFig.from_float(0.0013, 2), 
                              unc = si.SigFig.from_float(0.0003, 1),  

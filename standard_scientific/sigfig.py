@@ -7,6 +7,8 @@
 #   April 2, 2025 : JHT created
 #
 
+from standard_scientific.float_compare import eps
+
 import functools
 from dataclasses import dataclass
 from decimal import Decimal
@@ -14,7 +16,6 @@ import re
 import numpy as np
 import warnings
 
-eps = float(np.finfo(float).eps)
 
 #################################################################################
 # exponent_from_float
@@ -134,6 +135,21 @@ class SigFig:
         return f"{self.value:.{self.sigfigs-1}e}"
 
     ##################################################################
+    # contains(other)
+    #
+    #   This is the more general version of equals, which can be used to 
+    #   test ONE-SIDED sigifig equality. That is, does the other value
+    #   entirely rest within the uncertainty of this significant figure?
+    #
+    #
+    def contains(self, other):
+        if (isinstance(other, SigFig)):
+            return abs(self.value - other.value) < (5.0 * pow(10., self.sigfig_place() - 1)) 
+        else:
+            return abs(self.value - other) < (5.0 * pow(10., self.sigfig_place() - 1)) 
+
+
+    ##################################################################
     # == (equality) 
     # 
     # NOTE:
@@ -150,12 +166,10 @@ class SigFig:
     #       1.23 == x IFF |1.23 - x| < 0.005 
     #
     def __eq__(self, other):
-        if (isinstance(other, SigFig)):
-            return (self.sigfigs == other.sigfigs and
-                    self.exponent == other.exponent and
-                    abs(self.value - other.value) < (5.0 * pow(10., self.sigfig_place() - 1))) 
-        else:
-            return abs(self.value - other) < (5.0 * pow(10., self.sigfig_place() - 1)) 
+        assert(isinstance(other, SigFig)), f"__eq__ undefined except for comparision between sigfigs, perhaps you meant .contains() ?"
+        return (self.sigfigs == other.sigfigs and
+                self.exponent == other.exponent and
+                abs(self.value - other.value) < (5.0 * pow(10., self.sigfig_place() - 1))) 
 
     ##################################################################
     # < (strictly less than)
@@ -284,3 +298,10 @@ class SigFig:
     def __abs__(self):
         return SigFig(value = abs(self.value), sigfigs = self.sigfigs, exponent = self.exponent) 
         
+    ##################################################################
+    # as_exact()
+    #
+    # This returns the value of the SigFig as if it was an EXACT 
+    # value (infinite number of sigfigs)
+    def as_exact(self):
+        return self.value

@@ -104,8 +104,8 @@ def test_not_equals_SF_SF(x, s, y, t):
     (10034.44, 7, 10034.4449),
     (10034.44, 7, 10034.4365)
     ])
-def test_equals_SF_f(x, s, f):
-    assert(si.SigFig.from_float(x, s) == f)
+def test_contains_SF_f(x, s, f):
+    assert(si.SigFig.from_float(x, s).contains(f))
 
 ###############################################################
 # check the != operator for SigFig != float 
@@ -114,8 +114,8 @@ def test_equals_SF_f(x, s, f):
     (10034.44, 7, 10034.446),
     (10034.44, 7, 10034.433)
     ])
-def test_not_equals_SF_f(x, s, f):
-    assert(si.SigFig.from_float(x, s) != f)
+def test_not_contains_SF_f(x, s, f):
+    assert(not si.SigFig.from_float(x, s).contains(f))
 
 ###############################################################
 # Test < 
