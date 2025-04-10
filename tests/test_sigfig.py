@@ -314,7 +314,38 @@ def test_no_warining(x, y):
 ################################################################
 # Test the absoulte value funciton
 @pytest.mark.parametrize("x, y", [
-    (si.SigFig.from_float(-1.0, 1), si.SigFig.from_float(1.0, 1))
+    (si.SigFig.from_float(-1.0, 1), si.SigFig.from_float(1.0, 1)),
+    (si.SigFig.from_float(1.0, 1), si.SigFig.from_float(1.0, 1))
     ])
 def test_abs_good(x, y):
     assert(abs(x) == y)
+
+################################################################
+# Test the contains function
+@pytest.mark.parametrize("x, y", [
+    (si.SigFig.from_float(10., 2), si.SigFig.from_float(10., 2)),
+    (si.SigFig.from_float(-10., 2), si.SigFig.from_float(-10., 2)),
+    (si.SigFig.from_float(10., 2), 10.),
+    (si.SigFig.from_float(10., 2), 10.49),
+    (si.SigFig.from_float(0., 2), 0.),
+    (si.SigFig.from_float(10., 2), 9.51)
+    ])
+def test_contains_bothsides(x, y):
+    assert(x.contains(y) and (y.contains(x) if isinstance(y, si.SigFig) else True))
+
+################################################################
+# Test the contains function
+@pytest.mark.parametrize("x, y", [
+    (si.SigFig.from_float(10., 1), si.SigFig.from_float(6., 1))
+    ])
+def test_contains_onesided(x, y):
+    assert(x.contains(y) and not y.contains(x))
+
+################################################################
+# Test the contains function
+@pytest.mark.parametrize("x, y", [
+    (si.SigFig.from_float(10., 2), si.SigFig.from_float(6., 2)),
+    (si.SigFig.from_float(-10., 2), si.SigFig.from_float(10., 2))
+    ])
+def test_not_contains(x, y):
+    assert(not x.contains(y) and not y.contains(x))
