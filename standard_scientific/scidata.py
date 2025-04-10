@@ -324,8 +324,8 @@ class SciData:
 
     ##########################
     # string conversion
-#    def __str__(self):
-#        if self.is_exact:
-#            return str(self.value) + "(exact)"
-#        else:
-#            assert(False), f"Not implemented yet!"
+    def __str__(self):
+        if self.is_exact:
+            return f"{self.value.value * pow(10, -self.value.exponent):.{self.value.sigfigs}} (exact) E{self.value.exponent}" 
+        else:
+            return f"{self.value.value * pow(10, -self.value.exponent):.{self.value.sigfigs}} ({int(self.unc.value * pow(10, -self.unc.exponent + self.unc.sigfigs - 1 )):d}) E{self.value.exponent}" 
