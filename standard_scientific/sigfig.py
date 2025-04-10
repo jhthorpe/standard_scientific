@@ -277,3 +277,10 @@ class SigFig:
                                      sigfigs = self.sigfigs)
 
 
+    ##################################################################
+    # abs()
+    #
+    # Returns absolute value of a sigfig
+    def __abs__(self):
+        return SigFig(value = abs(self.value), sigfigs = self.sigfigs, exponent = self.exponent) 
+        

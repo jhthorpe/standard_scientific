@@ -108,12 +108,9 @@ class SciData:
         exponent_strings = ["e", "E", "x10**", "x10^", "x10"]
         start_strings = ["+", "-"] #valid start strings
 
-        s_in = s
-        print(f"At start : {s}")#TESTING
-
         #start by trimming whitespace
+        s_in = s
         s = "".join(s.split()) 
-        print(f"After trim : {s}") #TESTING
 
         #Now, if we have an exponent section, extract it. 
         #NOTE, this intentionally keeps badly formated strings with multiple
@@ -128,7 +125,6 @@ class SciData:
             f_exp = pow(10., int(s_pow))
         except Exception as e:
             assert(False), f"Exception was thrown while attempting to extract exponent of {s_in}. {e}"
-        print(f"Pre and post exponents are {s} and {f_exp}") #TESTING
 
 
         # Check for uncertainty string 
@@ -143,7 +139,6 @@ class SciData:
             #extract the uncertainty string from the value string
             s, s_unc = s.split("(")
             s_unc, s_tmp = s_unc.split(")")
-
         else:
             exact = True
 
@@ -151,7 +146,6 @@ class SciData:
             val = float(s) * f_exp
         except Exception as e:
             assert(False), f"Exception was thrown while attempting to extract exact value in {s_in}. {e}"
-        print(f"Extracted value was {val}") #TESTING
 
         # Obtain sigfigs of the value.
         #
@@ -169,147 +163,54 @@ class SciData:
 
         s_sfig = re.sub('^[+-0]*0+', '', s) #remove all leading zero's following zero or signs 
         s_sfig = re.sub("^[.]0+", '', s_sfig) #remove any of the leading zero's that follow a decimal point in first position
-        print(f"String without leading zeros {s_sfig}") #TESTING
 
         if not exact:
             val_sfig = sum(c.isdigit() for c in s_sfig)
-            print(f"value sigfigs case a) nonexact: {val_sfig}") #TESTING
         else:
             if "." in s:
                 val_sfig = sum(c.isdigit() for c in s_sfig)
                 val_sfig = min(val_sfig, exponent_from_float(val) - exponent_from_float(val * eps))
-                print(f"value sigfigs case b) exact with decimal : {val_sfig}") #TESTING
             else:
                 val_sfig = exponent_from_float(val) - exponent_from_float(val * eps)
-                print(f"value sigfigs case c) exact without decimal : {val_sfig}") #TESTING
-                
-        print(f"Sigfigs of the value was {val_sfig}") #TESTING
+
+        # Value is done, save it's sigfig
+        value_SigFig = SigFig.from_float(value = val, sigfigs = val_sfig)
 
         # If inexact, process the uncertainties 
+        #
+        # For this, we specifically need to 
+        # a) determine the number of sigfigs in the uncertainty. Note that, here, we are less forgiving,
+        #    and rigerously demand that the string cannot contain anything but digits, and that 
+        #    the first value must be a nonzero number (no leading zero strings). We implicitly assume 
+        #    that all trailing zeros are significant
+        #
+        # b) Find the exponent to multiply by. This takes place in three steps, detailed below:
+        #    1. Convert to scientific notation exonent: 12.345(67) E-4 -> 1.2345(67) E-3, performed above 
+        #    2. Find the decimal place the sigfig lives in: unc_sfig - val_sfig: 1.2345(67) -> 2 - 5 = -3  
+        #    3. Convert the sigfig from integer to leading decimal form: -(unc_sfig - 1) 
+        # 
+        #    This all results in an exponent of :
+        #       10^(value_exponent + value_sigfig + 1)
+        #
         if not exact:
 
-            #sigfigs are simply the length of digits of the string
             unc_sfig = sum(c.isdigit() for c in s_unc)
-            print(f"Sigfigs of the uncertainty was {unc_sfig}") #TESTING
+            assert(unc_sfig == len(s_unc)), f"Uncertainty string in {s_in} contained non-digit characters."
+            assert(s_unc[0] != "0"), f"Uncertainty string in {s_in} contained a leading 0" 
 
             try:
                 #convert to int
                 i_unc = int(s_unc)
-                
-                #find the decimal place in s
-
-#                unc = i_unc * f_uexp * f_exp
+                unc = i_unc  * pow(10., -val_sfig + 1 + value_SigFig.exponent) #WRONG
+                assert(unc > 0), f"Standard uncertainty of <= 0 found in {s_in}." 
             except Exception as e:
                 assert(False), f"Exception was thrown during the extraction of the uncertainty in {s_in}. {e}"
-            print(f"Uncertainty of the value was {unc}") #TESTING
-           
-
-###############################################
-        '''
-        # Now, extract the uncertainties if they are there and split the strings for processing 
-        # 
-        # This also sets the exact or inexact parameter, without uncertainties the values
-        # are taken as exact by default!
-        #
-        # Case a) there are given uncertainties and the value is inexcat
-        value_sfig = None
-        unc_sfig = None
-        f_uexp = None
-        if ("(" in s and ")" in s):
-
-            exact = False
-
-            #extract the uncertainty string from the value string
-            s, s_unc = s.split("(")
-            s_unc, s_tmp = s_unc.split(")")
-
-            #Trim leading zeros from the value
-            s = re.sub("^.0*", "", s)
-            print(f"After subs of leading zeros... {s}") #TESTING
-
-            #Assign significant figures to the value after trimming leading zeros 
-            value_sfigs = len(s)
-            for sub in nondigit_characters:
-                value_sfigs -= s.count(sub)
-
-            #The number of sigfigs of the uncertainty is just the number of digits within it
-            unc_sfigs = len(s_unc)
-
-            print()
-
-            #Convert the value. At this point, all that remains in s is the value itself
-            try: 
-                value = float(s) * f_exp
-            except Exception as e:
-                assert(False), f"Exception was thrown while attempting to extract exact value in {s_in}. {e}"
-            print(f"Extracted value was {value}") #TESTING
-
-
-            #if the value has decimal points
-            if "." in s:
-                print(f"THE VALUE HAD DECIMALS") #TESTING
-
-                # number of sigfigs is the length of the string
-
-                exit(1)
-
-            #if no decimal points, then the string is something like:
-            # "1234", "(56)", "e-10"
-            else:
-                print(f"THE VALUE HAD NO DECIMALS") #TESTING
-                
-                #Number of sigfigs minus special characters
-                value_sfigs = len(s) - s.count("+") - s.count("-")
-
-                # 
-
-                exit(1)
-
-
-            #number of sigfigs in uncertainty are equal to the number of values in it
-            unc_sfig = len(s_unc)
-
-
-        # Case b) there are no given uncertainties and the value is exact, no need to
-        #         pre/postprocess zeros since it has "infinite" sigfigs, but machine
-        #         precision sigfigs here. We take this as the number of decimal places
-        #         present in the value times epsilon
-        else:
-            exact = True
-
-            #Convert the value. At this point, all that remains in s is the value itself
-            try: 
-                value = float(s) * f_exp
-            except Exception as e:
-                assert(False), f"Exception was thrown while attempting to extract exact value in {s_in}. {e}"
-            print(f"Extracted value was {value}") #TESTING
-
-            #Now, generate the approximate sigfigs (thanks to machine noise)
-            # Note that this ends up being just the number of digits you can "trust" in 
-            # the floating point arithmatic, BUT in a way that's unique to the system definition
-            # of float and epsilon
-            value_sfig = exponent_from_float(value) - exponent_from_float(value * eps) 
-
-        # If there was an uncertainty, construct it now 
-        if not exact:
-            try:
-                unc = float(int(i_unc) * f_exp * f_uexp) 
-            except Exception as e:
-                assert(False), f"Exception was thrown while attempting to construct uncertainty from {s_in}. {e}"
-
-        #convert to sigfigs at end, and form relative uncertainty
-        value_SigFig = SigFig.from_float(value = val, sigfigs = val_sfig)
-        unc_SigFig = SigFig.from_float(value = unc, sigfigs = unc_sfig) if not exact else None 
-        rel_SigFig = unc_SigFig / value_SigFig if not exact else None
-
-        return SciData(value = value_SigFig, unc = unc_SigFig, rel_unc = rel_SigFig, is_exact = exact) 
-        '''
 
         #Generate the sigfigs
-        value_SigFig = SigFig.from_float(value = val, sigfigs = val_sfig)
+        unc_SigFig = SigFig.from_float(value = unc, sigfigs = unc_sfig) if not exact else None 
+        rel_SigFig = unc_SigFig / abs(value_SigFig) if not exact else None
 
-        return SciData(value = value_SigFig, unc = None, rel_unc = None, is_exact = True) 
-
+        return SciData(value = value_SigFig, unc = unc_SigFig, rel_unc = rel_SigFig, is_exact = exact) 
 
     ##########################
     # from_SigFigs 

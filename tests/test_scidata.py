@@ -69,15 +69,74 @@ def test_from_SigFig_bad(v, u, r, ex):
     with pytest.raises(Exception) as e:
         si.SciData.from_SigFigs(value = v, unc = u, rel_unc = r, is_exact = ex) 
 
-'''
-###############################################################
-# Check that there is an error if we give bad input 
-#
-@pytest.mark.parametrize("x", [
-    (None),
-    ('abc')
-])
-def test_exponent_from_float_excpetions(x):
+################################################
+# Test from_str throws an assert in conversions from common mistakes
+@pytest.mark.parametrize("s", [
+    ("1.23(04)"),
+    ("1.23(0.04)")
+    ])
+def test_from_str_bad(s):
     with pytest.raises(Exception) as e:
-        si.exponent_from_float(x)
-'''
+        si.SciData.from_str(s)
+
+
+################################################
+# Testing the from_str, these should all pass without
+# errors or warnings. 
+@pytest.mark.parametrize("s, c", [
+    ("+12.3", 
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(12.3, 3), 
+                             unc = None, 
+                             rel_unc = None,  
+                             is_exact = True)), 
+    ("-0.01234", 
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(-0.01234, 4), 
+                             unc = None, 
+                             rel_unc = None, 
+                             is_exact = True)), 
+    ("123", 
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(123, si.exponent_from_float(123) - si.exponent_from_float(123 * si.eps)), 
+                             unc = None, 
+                             rel_unc = None, 
+                             is_exact = True)), 
+    ("0123", 
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(123, si.exponent_from_float(123) - si.exponent_from_float(123 * si.eps)), 
+                             unc = None, 
+                             rel_unc = None, 
+                             is_exact = True)), 
+    ("01230", 
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(1230, si.exponent_from_float(1230) - si.exponent_from_float(1230 * si.eps)), 
+                             unc = None, 
+                             rel_unc = None, 
+                             is_exact = True)), 
+    ("1.234567892345679123456789", 
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(1.234567892345679123456789, 
+                                                          si.exponent_from_float(1.234567892345679123456789) 
+                                                          - si.exponent_from_float(1.234567892345679123456789 * si.eps)), 
+                             unc = None, 
+                             rel_unc = None, 
+                             is_exact = True)),
+    ("+00.0013(3)",
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(0.0013, 2), 
+                             unc = si.SigFig.from_float(0.0003, 1),  
+                             rel_unc = si.SigFig.from_float(0.0003 / 0.0013, 1), 
+                             is_exact = False)),
+    ("-0012.345(67)e-4",
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(-0.0012345, 5), 
+                             unc = si.SigFig.from_float(  0.0000067, 2),  
+                             rel_unc = si.SigFig.from_float(0.0000067 / 0.0012345, 2), 
+                             is_exact = False)),
+    ("1.2(345)",
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(1.2, 2), 
+                             unc = si.SigFig.from_float( 34.5, 3),  
+                             rel_unc = si.SigFig.from_float(34.5 / 1.2, 2), 
+                             is_exact = False)),
+    ("1.2(345)e1",
+     si.SciData.from_SigFigs(value = si.SigFig.from_float(12, 2), 
+                             unc = si.SigFig.from_float( 345, 3),  
+                             rel_unc = si.SigFig.from_float(345 / 12, 2), 
+                             is_exact = False)),
+    ])
+def test_from_str_good(s, c):
+    assert(si.SciData.from_str(s) == c)
+

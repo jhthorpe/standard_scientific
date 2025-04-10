@@ -311,3 +311,10 @@ def test_w_round(x, y):
 def test_no_warining(x, y):
     a = si.SigFig.from_float(value = x, sigfigs = y) 
     
+################################################################
+# Test the absoulte value funciton
+@pytest.mark.parametrize("x, y", [
+    (si.SigFig.from_float(-1.0, 1), si.SigFig.from_float(1.0, 1))
+    ])
+def test_abs_good(x, y):
+    assert(abs(x) == y)
